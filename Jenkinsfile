@@ -77,7 +77,36 @@ pipeline {
           }
       }
 
-     // vote
+      // result
+      stage('result-build') {
+        when {
+          changeset '**/result/**'
+        }
+        agent {
+          docker {
+            image 'nodejs:latest'
+          }
+        }
+        steps {
+          echo 'TODO:Starting to Build'
+          sh 'npm install'
+        }
+      }
+      stage('vote-test') {
+        when {
+          changeset '**/result/**'
+        }
+        agent {
+            docker {
+              image 'nodejs:latest'
+            }
+        }
+        steps {
+          echo 'Starting to test'
+          sh 'npm install'
+          sh 'npm test'
+        }
+      }
 
       // vote pipeline
       stage('vote-build') {

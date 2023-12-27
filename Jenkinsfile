@@ -1,16 +1,13 @@
 pipeline {
-
   agent none
 
   stages {
-    
     stage('worker-build') {
       agent {
         docker {
           image 'maven:3.8.5-jdk-11-slim'
           args '-v $HOME/.m2:/root/.m2'
         }
-
       }
       when {
         changeset '**/worker/**'
@@ -20,7 +17,6 @@ pipeline {
         dir(path: 'worker') {
           sh 'mvn compile'
         }
-
       }
     }
 
@@ -30,7 +26,6 @@ pipeline {
           image 'maven:3.8.5-jdk-11-slim'
           args '-v $HOME/.m2:/root/.m2'
         }
-
       }
       when {
         changeset '**/worker/**'
@@ -40,7 +35,6 @@ pipeline {
         dir(path: 'worker') {
           sh 'mvn clean test'
         }
-
       }
     }
 
@@ -50,7 +44,6 @@ pipeline {
           image 'maven:3.8.5-jdk-11-slim'
           args '-v $HOME/.m2:/root/.m2'
         }
-
       }
       when {
         branch 'master'
@@ -62,7 +55,6 @@ pipeline {
           sh 'mvn package -DskipTests'
           archiveArtifacts(artifacts: '**/target/*.jar', fingerprint: true)
         }
-
       }
     }
 
@@ -82,7 +74,6 @@ pipeline {
             workerImage.push('latest')
           }
         }
-
       }
     }
 
@@ -91,7 +82,6 @@ pipeline {
         docker {
           image 'node:8.16.0-alpine'
         }
-
       }
       when {
         changeset '**/result/**'
@@ -101,7 +91,6 @@ pipeline {
         dir(path: 'result') {
           sh 'npm install'
         }
-
       }
     }
 
@@ -110,7 +99,6 @@ pipeline {
         docker {
           image 'node:8.16.0-alpine'
         }
-
       }
       when {
         changeset '**/result/**'
@@ -121,7 +109,6 @@ pipeline {
           sh 'npm install'
           sh 'npm test'
         }
-
       }
     }
 
@@ -150,7 +137,6 @@ pipeline {
           image 'python:2.7.16-slim'
           args '--user root'
         }
-
       }
       when {
         changeset '**/vote/**'
@@ -160,7 +146,6 @@ pipeline {
         dir(path: 'vote') {
           sh 'pip install -r requirements.txt'
         }
-
       }
     }
 
@@ -170,7 +155,6 @@ pipeline {
           image 'python:2.7.16-slim'
           args '--user root'
         }
-
       }
       when {
         changeset '**/vote/**'
@@ -181,24 +165,22 @@ pipeline {
           sh 'pip install -r requirements.txt'
           sh 'nosetests -v'
         }
-
       }
     }
 
-    stage('vote integration'){ 
-    agent any 
-    when{ 
-      changeset "**/vote/**" 
-      branch 'master' 
-    } 
-    steps{ 
-      echo 'Running Integration Tests on vote app' 
-      dir('vote'){ 
-        sh 'sh integration_test.sh' 
-      } 
-    } 
-} 
-
+    stage('vote integration') {
+      agent any
+      when {
+        changeset '**/vote/**'
+        branch 'master'
+      }
+      steps {
+        echo 'Running Integration Tests on vote app'
+        dir('vote') {
+          sh 'sh integration_test.sh'
+        }
+      }
+    }
 
     stage('vote-docker-package') {
       agent any
@@ -207,16 +189,45 @@ pipeline {
         script {
           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-token') {
             // ./vote is the path to the Dockerfile that Jenkins will find from the Github repo
-            def voteImage = docker.build("ennc0d3/vote:${env.GIT_COMMIT}", "./vote")
+            def voteImage = docker.build("ennc0d3/vote:${env.GIT_COMMIT}", './vote')
             voteImage.push()
             voteImage.push("${env.BRANCH_NAME}")
-            voteImage.push("latest")
+            voteImage.push('latest')
           }
         }
-
       }
     }
 
+    stage('Sonarqube') {
+      agent any
+      when {
+        branch 'master'
+      }
+      // tools {
+       // jdk "JDK11" // the name you have given the JDK installation in Global Tool Configuration
+     // }
+
+      environment {
+        sonarpath = tool 'SonarQubeScanner'
+      }
+
+      steps {
+            echo 'Running Sonarqube Analysis..'
+            withSonarQubeEnv('sonarqube-instavote-token') {
+              sh "${sonarpath}/bin/sonar-scanner -Dproject.settings=sonar-project.properties -Dorg.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL=86400"
+            }
+      }
+    }
+
+    stage('Quality Gate') {
+        steps {
+            timeout(time: 1, unit: 'HOURS') {
+          // Parameter indicates whether to set pipeline to UNSTABLE if Quality Gate fails
+          // true = set pipeline to UNSTABLE, false = don't
+          waitForQualityGate abortPipeline: true
+            }
+        }
+    }
 
     stage('deploy to dev') {
       agent any
@@ -228,9 +239,8 @@ pipeline {
         sh 'docker-compose up -d'
       }
     }
-    
   }
-  
+
   post {
     always {
       echo 'Building mono pipeline for voting app is completed.'

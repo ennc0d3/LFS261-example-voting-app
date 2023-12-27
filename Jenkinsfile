@@ -70,7 +70,7 @@ pipeline {
           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-token') {
             def workerImage = docker.build("ennc0d3/worker:v${env.BUILD_ID}", './worker')
             workerImage.push()
-            workerImage.push("${env.BRANCH_NAME}")
+            //workerImage.push("${env.BRANCH_NAME}")
             workerImage.push('latest')
           }
         }
@@ -124,7 +124,7 @@ pipeline {
           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-token') {
             def resultImage = docker.build("ennc0d3/result:v${env.BUILD_ID}", './result')
             resultImage.push()
-            resultImage.push("${env.BRANCH_NAME}")
+            //resultImage.push("${env.BRANCH_NAME}")
             resultImage.push('latest')
           }
         }
@@ -191,7 +191,7 @@ pipeline {
             // ./vote is the path to the Dockerfile that Jenkins will find from the Github repo
             def voteImage = docker.build("ennc0d3/vote:${env.GIT_COMMIT}", './vote')
             voteImage.push()
-            voteImage.push("${env.BRANCH_NAME}")
+            //voteImage.push("${env.BRANCH_NAME}")
             voteImage.push('latest')
           }
         }
